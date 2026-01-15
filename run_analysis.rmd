@@ -1,0 +1,236 @@
+---
+title: "run_analysis"
+author: "AM"
+date: "2026-01-14"
+output: html_document
+---
+
+
+
+```{r}
+#Load libraries
+
+library(dplyr)
+library(lubridate)
+
+```
+
+```{r}
+#Read in data
+
+#Read in features.txt to get the column names (I think)
+features <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\features.txt", 
+                       header = FALSE, 
+                       sep = " ", 
+                       nrows = 561)
+
+#Rename the column names with base R since I don't want to type out the column name
+names(features)[1] <- "rownum"
+names(features)[2] <- "feature"
+
+#Read in activity labels (in case I need it)
+activitylabels <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\activity_labels.txt",
+                             header = FALSE,
+                             sep = " ",
+                             nrows = 6)
+
+#Rename the columns using base R
+names(activitylabels)[1] <- "activitynum"
+names(activitylabels)[2] <- "activityname"
+```
+
+```{r}
+#Read in the training data
+subjecttrain <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\test\\subject_test.txt",
+                          header = FALSE,
+                          sep = " ")
+
+xtesttrain <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\test\\X_test.txt",
+                         header = FALSE,
+                         sep = "")
+
+#561 columns in xtesttrain, pretty sick
+
+ytesttrain <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\test\\y_test.txt",
+                         header = FALSE,
+                         sep = "")
+#ytesttrain just contains the activity this was done for, found in activitylabels
+
+#Merge all the training datasets
+#Add a rownumber variable to each to merge by
+
+subjecttrain[, (ncol(subjecttrain) + 1)] <- c(1:length(subjecttrain[ ,1]))
+xtesttrain[, (ncol(xtesttrain) + 1)] <- c(1:length(xtesttrain[, 1]))
+ytesttrain[, (ncol(ytesttrain) + 1)] <- c(1:length(ytesttrain[, 1]))
+
+#Rename column names for subjecttrain
+names(subjecttrain)[1] <- "subjectid"
+names(subjecttrain)[2] <- "rownum"
+
+#Rename column names for xtesttrain
+#V1 - V561 should be taken from the features dataframe
+xtestcolnames <- c(features$feature, "rownum")
+names(xtesttrain) <- xtestcolnames
+
+#Rename columns for ytesttrain
+names(ytesttrain)[1] <- "activitylabel"
+names(ytesttrain)[2] <- "rownum"
+
+#Merge datasets together (merge only accepts 2 at a time)
+temp <- merge(subjecttrain, xtesttrain)
+training <- merge(temp, ytesttrain)
+
+#Remove the temp variable
+rm(temp)
+
+#Remove the original datasets for memory
+rm(subjecttrain)
+rm(xtesttrain)
+rm(ytesttrain)
+rm(xtestcolnames)
+```
+
+```{r}
+#Read in the training data
+
+subjecttest <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\train\\subject_train.txt",
+                          header = FALSE,
+                          sep = "")
+
+xtesttest <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\train\\X_train.txt",
+                        header = FALSE,
+                        sep = "")
+
+ytesttest <- read.table(file = "C:\\Users\\amin2\\Desktop\\coursera-notes\\Data Cleaning\\Course Project\\UCI HAR Dataset\\train\\y_train.txt",
+                        header = FALSE,
+                        sep = "")
+
+#Merge all the training datasets
+#Add a rownumber variable to each to merge by
+subjecttest[, (ncol(subjecttest) + 1)] <- c(1:length(subjecttest[ , 1]))
+xtesttest[, (ncol(xtesttest) + 1)] <- c(1:length(xtesttest[, 1]))
+ytesttest[, (ncol(ytesttest) + 1)] <- c(1:length(ytesttest[, 1]))
+
+#Rename columns for subjecttest
+names(subjecttest)[1] <- "subjectid"
+names(subjecttest)[2] <- "rownum"
+
+#Rename columns for xtesttest
+xtestcolnames <- c(features$feature, "rownum") 
+names(xtesttest) <- xtestcolnames
+rm(xtestcolnames)
+
+#Rename columns for ytesttest
+names(ytesttest)[1] <- "activitylabel"
+names(ytesttest)[2] <- "rownum"
+
+#Merge datasets together (merge only accepts 2 at a time)
+temp <- merge(subjecttest, xtesttest)
+testing <- merge(temp, ytesttest)
+
+#Remove temp variable
+rm(temp)
+
+#Remove original datasets
+rm(subjecttest)
+rm(xtesttest)
+rm(ytesttest)
+
+```
+
+```{r}
+#Merge the testing and training sets together
+
+#Change the name of training rownum to be distinct
+testing <- rename(testing, rownumtest = rownum)
+
+#Change the name of the testing rownum to be distinct
+training <- rename(training, rownumtrain = rownum)
+
+commoncols <- names(testing)[2:length(names(testing))]
+
+combined <- full_join(testing, training, by = commoncols)
+
+rm(testing)
+rm(training)
+rm(features)
+
+```
+
+```{r}
+#Data exploration
+
+#Choose a random variable with mean() and std()
+#tBodyAcc-mean()-X
+#tBodyAcc-std()-X
+
+#Let's see if values repeat based on the subjectid
+combined %>% select(subjectid, `tBodyAcc-mean()-X`, `tBodyAcc-std()-X`, activitylabel) %>% head()
+
+#Ok so they don't repeat
+
+
+#Have to extract all the column names in names(combined) that contain "mean" and "std"
+
+selected <- grep("mean|std", names(combined), value = TRUE)
+
+#I want to exclude anything that has "Freq"
+selected <- selected[!grepl("Freq", selected)]
+
+#Final data frame that has only the mean and std variables
+combined <- combined %>% select(subjectid, all_of(selected), activitylabel)
+
+```
+
+
+```{r}
+#Need to rename the activity levels
+#Factorize activitylabel
+combined$activitylabel <- factor(combined$activitylabel,
+                                 levels = 1:6,
+                                 labels = activitylabels$activityname)
+```
+
+```{r}
+#Create a tidy data set with the average of each variable for each activity and each subject
+#Look at the Wickham paper for tidy data
+#Use the across() function to apply the mean function to all the variables
+
+df <- combined %>% 
+  group_by(subjectid, activitylabel) %>% 
+  summarize(across(all_of(selected), ~mean(.x, na.rm = TRUE)))
+
+```
+
+```{r}
+#Rename all the column names in df to be something useful
+#Pull subjectid and activity label to the front
+
+df <- df %>% select(subjectid, activitylabel, everything())
+
+#Write a for loop to add " calculated mean" to each variable name
+
+for(i in 3:length(names(df))){
+  
+  names(df)[i] <- paste(names(df)[i], "-mean")
+  
+}
+
+#Remove all of the dashes and parenthesis
+names(df) <- gsub("-", "", names(df))
+names(df) <- gsub("\\(", "", names(df))
+names(df) <- gsub(")", "", names(df))
+
+#Make everything lowercase
+names(df) <- tolower(names(df))
+
+write.table(df, file = "courseproject.txt")
+```
+
+
+
+
+
+
+
+

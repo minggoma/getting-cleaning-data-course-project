@@ -210,11 +210,7 @@ df <- df %>% select(subjectid, activitylabel, everything())
 
 #Write a for loop to add " calculated mean" to each variable name
 
-for(i in 3:length(names(df))){
-  
-  names(df)[i] <- paste(names(df)[i], "-mean")
-  
-}
+
 
 #Remove all of the dashes and parenthesis
 names(df) <- gsub("-", "", names(df))
@@ -223,6 +219,12 @@ names(df) <- gsub(")", "", names(df))
 
 #Make everything lowercase
 names(df) <- tolower(names(df))
+
+for(i in 3:length(names(df))){
+  
+  names(df)[i] <- paste(names(df)[i], "mean", sep = "")
+  
+}
 
 write.table(df, file = "courseproject.txt")
 ```
